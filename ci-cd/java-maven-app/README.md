@@ -1,17 +1,17 @@
 # Project description
 Create a CI/CD pipeline for a Java Maven Application to perform the following actions:
 
-* Dynamically set the application version
-* Build artifact for Java Maven application - JAR file
-* Build and push Docker image to DockerHub
-* Deploy new application version to the EKS cluster
-* Commit new application version back to the repository
+* CI: Dynamically set the application version
+* CI: Build artifact for Java Maven application - JAR file
+* CI: Build and push Docker image to DockerHub
+* CD: Deploy new application version to the EKS cluster
 
 # Technologies used
 Kubernetes, Jenkins, AWS EKS, Docker Hub, Java, Maven, Linux, Docker, Git, Digital Ocean
 
 # Prerequisite
 * Java maven application code available at https://github.com/jobyjfrancis/java-maven-app
+* Jenkins shared library https://github.com/jobyjfrancis/jenkins-shared-library
 
 # Steps performed
 
@@ -101,6 +101,178 @@ joby@LAPTOP-KVPR8SO6:~/learn/java-maven-app (develop)$ docker images | grep jma
 jma                                                                      1.0.0           21dc03bd1ff0   13 hours ago    194MB
 joby@LAPTOP-KVPR8SO6:~/learn/java-maven-app (develop)$
 ```
+## Continous Integration
+
+This stage involves creating a Jenkins server, configuring the build tools, required credentials and configuring a multi-branch pipeline job
+
+1. Created an Ubuntu 24.04 droplet in Digital Ocean, installed docker and deployed Jenkins as a container in it
+
+![alt text](images/image.png)
+
+```
+root@jenkins-server:~# docker version
+Client:
+ Version:           28.4.0
+ API version:       1.51
+ Go version:        go1.24.6
+ Git commit:        d8eb465
+ Built:             Thu Sep 11 16:43:06 2025
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server:
+ Engine:
+  Version:          28.4.0
+  API version:      1.51 (minimum version 1.24)
+  Go version:       go1.24.6
+  Git commit:       249d679
+  Built:            Thu Sep 11 16:43:39 2025
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v1.7.27
+  GitCommit:        05044ec0a9a75232cad458027ca83437aae3f4da
+ runc:
+  Version:          1.2.6
+  GitCommit:
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+root@jenkins-server:~#
+```
+```
+root@jenkins-server:~# docker run -d -p 8080:8080 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts
+Unable to find image 'jenkins/jenkins:lts' locally
+lts: Pulling from jenkins/jenkins
+13cc39f8244a: Pull complete
+dc2a77f462ea: Pull complete
+33300af18dd0: Pull complete
+c27509c3e53b: Pull complete
+e4beac64dffa: Pull complete
+a37b858bb47a: Pull complete
+744b4792e083: Pull complete
+05a7d9a8b608: Pull complete
+8d2a75b252b2: Pull complete
+65e4ba8066bc: Pull complete
+5dc07232677a: Pull complete
+7718ff514022: Pull complete
+Digest: sha256:7b1c378278279c8688efd6168c25a1c2723a6bd6f0420beb5ccefabee3cc3bb1
+Status: Downloaded newer image for jenkins/jenkins:lts
+0dc2152277792011d60ed7255febbb956ade7b509b792b067bc741eef8de459a
+root@jenkins-server:~#
+```
+```
+root@jenkins-server:~# docker ps
+CONTAINER ID   IMAGE                 COMMAND                  CREATED          STATUS          PORTS                                                    NAMES
+0dc215227779   jenkins/jenkins:lts   "/usr/bin/tini -- /u…"   47 seconds ago   Up 46 seconds   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp, 50000/tcp   determined_hoover
+root@jenkins-server:~#
+```
+![alt text](images/image2.png)
+
+2. Added the credentials for Github and Docker Hub so that Jenkins can access them and perform operations such as cloning the code, docker login and docker push image
+
+![alt text](images/image3.png)
+
+3. Installed the build tool `maven` for the Java application in Jenkins
+
+![alt text](images/image4.png)
+
+4. Stopped the Jenkins container, created it again by mounting `/var/run/docker.sock`, corrected permissions of `var/run/docker.sock` and installed `docker` inside the Jenkins container so that our pipeline can use docker commands
+
+```
+root@jenkins-server:~# docker ps
+CONTAINER ID   IMAGE                 COMMAND                  CREATED          STATUS          PORTS                                                    NAMES
+0dc215227779   jenkins/jenkins:lts   "/usr/bin/tini -- /u…"   39 minutes ago   Up 39 minutes   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp, 50000/tcp   determined_hoover
+root@jenkins-server:~#
+root@jenkins-server:~# docker stop 0dc215227779
+0dc215227779
+root@jenkins-server:~#
+```
+```
+root@jenkins-server:~# docker run -d -p 8080:8080 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock jenkins/jenkins
+:lts
+6af93264dcaa56202081fa37a6906ff0d2eac796ac6889f670113d31102e1a39
+root@jenkins-server:~#
+```
+```
+root@jenkins-server:~# docker exec -it -u 0 6af93264dcaa /bin/bash
+root@6af93264dcaa:/#
+root@6af93264dcaa:/# chmod 666  /var/run/docker.sock
+root@6af93264dcaa:/#
+root@6af93264dcaa:/# curl https://get.docker.com/ > dockerinstall && chmod 777 dockerinstall && ./dockerinstall
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 21013  100 21013    0     0   690k      0 --:--:-- --:--:-- --:--:--  707k
+# Executing docker install script, commit: 7d96bd3c5235ab2121bcb855dd7b3f3f37128ed4
++ sh -c apt-get -qq update >/dev/null
++ sh -c DEBIAN_FRONTEND=noninteractive apt-get -y -qq install ca-certificates curl >/dev/null
++ sh -c install -m 0755 -d /etc/apt/keyrings
++ sh -c curl -fsSL "https://download.docker.com/linux/debian/gpg" -o /etc/apt/keyrings/docker.asc
++ sh -c chmod a+r /etc/apt/keyrings/docker.asc
++ sh -c echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable" > /etc/apt/sources.list.d/docker.list
++ sh -c apt-get -qq update >/dev/null
++ sh -c DEBIAN_FRONTEND=noninteractive apt-get -y -qq install docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-ce-rootless-extras docker-buildx-plugin docker-model-plugin >/dev/null
++ sh -c docker version
+Client: Docker Engine - Community
+ Version:           29.0.4
+ API version:       1.51 (downgraded from 1.52)
+ Go version:        go1.25.4
+ Git commit:        3247a5a
+ Built:             Mon Nov 24 21:59:48 2025
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server:
+ Engine:
+  Version:          28.4.0
+  API version:      1.51 (minimum version 1.24)
+  Go version:       go1.24.6
+  Git commit:       249d679
+  Built:            Thu Sep 11 16:43:39 2025
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v1.7.27
+  GitCommit:        05044ec0a9a75232cad458027ca83437aae3f4da
+ runc:
+  Version:          1.2.6
+  GitCommit:
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+
+================================================================================
+
+To run Docker as a non-privileged user, consider setting up the
+Docker daemon in rootless mode for your user:
+
+    dockerd-rootless-setuptool.sh install
+
+Visit https://docs.docker.com/go/rootless/ to learn about rootless mode.
+
+
+To run the Docker daemon as a fully privileged service, but granting non-root
+users access, refer to https://docs.docker.com/go/daemon-access/
+
+WARNING: Access to the remote API on a privileged Docker daemon is equivalent
+         to root access on the host. Refer to the 'Docker daemon attack surface'
+         documentation for details: https://docs.docker.com/go/attack-surface/
+
+================================================================================
+
+root@6af93264dcaa:/#
+```
+5. Created the `Jenkinsfile` with configuration for CI stages under the application - https://github.com/jobyjfrancis/java-maven-app/blob/develop/Jenkinsfile
+
+6. Created the multi-branch pipeline named `Java Maven App multi-branch pipeline`, configured it with the Git URL and other required parameters.
+
+![alt text](images/image5.png)
+![alt text](images/image6.png)
+
+7. Ran the build and confirmed that the CI stages have worked as configured for `develop` branch - build #3
+
+![alt text](images/image7.png)
+
 
 
 
