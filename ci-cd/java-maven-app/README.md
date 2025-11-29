@@ -273,6 +273,8 @@ root@6af93264dcaa:/#
 
 ![alt text](images/image7.png)
 
+8. Checked 
+
 
 
 
