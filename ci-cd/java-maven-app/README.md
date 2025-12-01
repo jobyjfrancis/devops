@@ -273,7 +273,9 @@ root@6af93264dcaa:/#
 
 ![alt text](images/image7.png)
 
-8. Checked 
+8. Checked docker hub and could see that the image has been uploaded
+
+![alt text](image.png)
 
 
 
