@@ -101,9 +101,13 @@ joby@LAPTOP-KVPR8SO6:~/learn/java-maven-app (develop)$ docker images | grep jma
 jma                                                                      1.0.0           21dc03bd1ff0   13 hours ago    194MB
 joby@LAPTOP-KVPR8SO6:~/learn/java-maven-app (develop)$
 ```
-## Continous Integration
+## Continous Integration - CI
 
-This stage involves creating a Jenkins server, configuring the build tools, required credentials and configuring a multi-branch pipeline job
+This stage involves creating a Jenkins server, configuring the build tools, required credentials and configuring a multi-branch pipeline job that would perform the following CI steps:
+
+* CI: Dynamically set the application version
+* CI: Build artifact for Java Maven application - JAR file
+* CI: Build and push Docker image to DockerHub
 
 1. Created an Ubuntu 24.04 droplet in Digital Ocean, installed docker and deployed Jenkins as a container in it
 
@@ -269,13 +273,13 @@ root@6af93264dcaa:/#
 ![alt text](images/image5.png)
 ![alt text](images/image6.png)
 
-7. Ran the build and confirmed that the CI stages have worked as configured for `develop` branch - build #3
+7. Ran the build and confirmed that the CI stages have worked as configured for `develop` branch
 
 ![alt text](images/image7.png)
 
-8. Checked docker hub and could see that the image has been uploaded
+8. Checked `docker hub` and could see that the image has been uploaded
 
-![alt text](image.png)
+![alt text](images/image8.png)
 
 
 
