@@ -512,7 +512,9 @@ joby@LAPTOP-KVPR8SO6:~/learn/java-maven-app (develop)$
 Under the `terraform` folder, you could find the terraform code to easily spin up an Ubuntu droplet in Digital Ocean and install a Jenkins container. Just add your Digital Ocean API key in `variables.auto.tfvars` file and run the following:
 
 `terraform init`
+
 `terraform plan`
+
 `terraform apply -auto-approve`
 
  
